@@ -19,8 +19,26 @@ MouseArea {
     property string source: "local"
     property string selectedResolution: "1080p"
     property string selectedColorGroup: ""
+    property string wallhavenSorting: "random"
+    property string wallhavenTopRange: "1M"
+    readonly property bool wallhavenTopList: root.wallhavenSorting === "toplist"
     property bool toolbarVisible: showControls || Config.options.wallpaperSelector.showSearchbar
     property bool filterFieldFocused: false
+
+    property var wallhavenSortModes: [
+        { value: "random",  displayName: Translation.tr("Random") },
+        { value: "toplist", displayName: Translation.tr("Top") },
+    ]
+
+    property var wallhavenTopRanges: [
+        { value: "1d", displayName: Translation.tr("1 Day") },
+        { value: "3d", displayName: Translation.tr("3 Days") },
+        { value: "1w", displayName: Translation.tr("1 Week") },
+        { value: "1M", displayName: Translation.tr("1 Month") },
+        { value: "3M", displayName: Translation.tr("3 Months") },
+        { value: "6M", displayName: Translation.tr("6 Months") },
+        { value: "1y", displayName: Translation.tr("1 Year") },
+    ]
 
     property var quickDirs: [
         { icon: "home",       name: "Home   ",       path: `${Directories.home}`,                alwaysVisible: Config.options.wallpaperSelector.showHomePath },
@@ -373,6 +391,52 @@ MouseArea {
                             }
                         }
 
+                        Loader {
+                            id: wallhavenSortLoader
+                            active: root.source === "wallhaven"
+                            visible: active
+                            sourceComponent: RowLayout {
+                                spacing: 6
+
+                                StyledComboBox {
+                                    id: sortCombo
+                                    implicitWidth: 104
+                                    model: root.wallhavenSortModes
+                                    textRole: "displayName"
+                                    valueRole: "value"
+                                    currentIndex: {
+                                        for (var i = 0; i < model.length; i++) {
+                                            if (model[i].value === root.wallhavenSorting) return i;
+                                        }
+                                        return 0;
+                                    }
+                                    onActivated: index => {
+                                        root.wallhavenSorting = model[index].value
+                                        root.forceActiveFocus()
+                                    }
+                                }
+
+                                StyledComboBox {
+                                    id: topRangeCombo
+                                    implicitWidth: 106
+                                    visible: root.wallhavenTopList
+                                    model: root.wallhavenTopRanges
+                                    textRole: "displayName"
+                                    valueRole: "value"
+                                    currentIndex: {
+                                        for (var i = 0; i < model.length; i++) {
+                                            if (model[i].value === root.wallhavenTopRange) return i;
+                                        }
+                                        return 0;
+                                    }
+                                    onActivated: index => {
+                                        root.wallhavenTopRange = model[index].value
+                                        root.forceActiveFocus()
+                                    }
+                                }
+                            }
+                        }
+
                         RippleButton {
                             implicitWidth: 36
                             implicitHeight: 36
@@ -428,6 +492,8 @@ MouseArea {
                             provider: root.source
                             resolution: root.selectedResolution
                             colorGroup: root.selectedColorGroup
+                            sorting: root.wallhavenSorting
+                            topRange: root.wallhavenTopRange
                             onWallpaperSelected: path => root.selectWallpaperPath(path)
                             onUpdateThumbnailsRequested: root.updateThumbnails()
                         }

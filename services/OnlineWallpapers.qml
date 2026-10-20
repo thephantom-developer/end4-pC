@@ -15,6 +15,8 @@ Singleton {
     property string colorGroup: ""           // naive: "" = all | "red"|"orange"|"yellow"|"green"|"blue"|"purple"
     property string category:   "general"    // wallhaven: "general"|"anime"|"people" / unsplash: "nature"|"city"|...
     property string purity:     "sfw"        // wallhaven: "sfw"|"sketchy"|"nsfw"
+    property string sorting:    "random"     // wallhaven: "random"|"toplist"
+    property string topRange:   "1M"         // wallhaven: only used when sorting = "toplist"
     property bool   loading:    false
     property bool   appending:  false 
     property int    page:       1
@@ -69,6 +71,25 @@ Singleton {
         "sketchy": "110",
         "nsfw":    "111",
     })
+
+    // ─── Sorting wallhaven ───
+    readonly property var sortingMap: ({
+        "random":  "random",
+        "toplist": "toplist",
+    })
+
+    // ─── Top range wallhaven (only valid when sorting = toplist) ───
+    readonly property var topRangeMap: ({
+        "1d": "1d",
+        "3d": "3d",
+        "1w": "1w",
+        "1M": "1M",
+        "3M": "3M",
+        "6M": "6M",
+        "1y": "1y",
+    })
+
+    readonly property bool topListMode: root.sorting === "toplist"
 
     function fetch() {
         if (root.loading) return;
@@ -146,9 +167,12 @@ Singleton {
         const purity   = root.purityMap[root.purity] ?? "100";
         const apikey   = root.wallhavenApiKey.length > 0 ? `&apikey=${root.wallhavenApiKey}` : "";
         const q        = root.query.length > 0 ? `&q=${encodeURIComponent(root.query)}` : ""; 
-        const seedParam = root.seed.length > 0 ? `&seed=${root.seed}` : "";
 
-        const url = `https://wallhaven.cc/api/v1/search?sorting=random&purity=${purity}&categories=100&ratios=16x9&atleast=${res}&page=${root.page}${seedParam}${q}${apikey}`;
+        const sorting   = root.sortingMap[root.sorting] ?? "random";
+        const rangeParam = root.topListMode ? `&topRange=${root.topRangeMap[root.topRange] ?? "1M"}` : "";
+        const seedParam = !root.topListMode && root.seed.length > 0 ? `&seed=${root.seed}` : "";
+
+        const url = `https://wallhaven.cc/api/v1/search?sorting=${sorting}${rangeParam}&purity=${purity}&categories=100&ratios=16x9&atleast=${res}&page=${root.page}${seedParam}${q}${apikey}`;
 
         fetchProc.provider = "wallhaven";
         fetchProc.command = ["curl", "-s", url];
@@ -191,7 +215,7 @@ Singleton {
     function _parseWallhaven(jsonStr) {
         try {
             const data = JSON.parse(jsonStr);
-            if (data.meta?.seed && root.seed.length === 0) {
+            if (data.meta?.seed && !root.topListMode && root.seed.length === 0) {
                 root.seed = data.meta.seed;
             }
             root.totalPages = data.meta?.last_page ?? 0

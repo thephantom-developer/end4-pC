@@ -14,6 +14,8 @@ Item {
     property string provider: "wallhaven"
     property string resolution: "1080p"
     property string colorGroup: ""
+    property string sorting: "random"
+    property string topRange: "1M"
     property int columns: Config.options.wallpaperSelector.columns || 4
     property real previewCellAspectRatio: 4 / 3
     property var hoveredItem: null
@@ -34,12 +36,23 @@ Item {
     onProviderChanged:   { root.hoveredItem = null; _syncAndFetch() }
     onResolutionChanged: _syncAndFetch()
     onColorGroupChanged: { if (root.provider === "naive" || root.provider === "blapples") _syncAndFetch() }
+    onSortingChanged:    _syncAndFetch()
+    onTopRangeChanged:   _syncAndFetch()
+
+    property bool pendingRefetch: false
 
     function _syncAndFetch() {
         if (root.missingKey) return
         OnlineWallpapers.provider   = root.provider
         OnlineWallpapers.resolution = root.resolution
         OnlineWallpapers.colorGroup = root.colorGroup
+        OnlineWallpapers.sorting    = root.sorting
+        OnlineWallpapers.topRange   = root.topRange
+        // Changing a filter mid-flight would show stale results, so queue a refetch
+        if (OnlineWallpapers.loading) {
+            root.pendingRefetch = true;
+            return;
+        }
         OnlineWallpapers.fetch()
     }
 
@@ -79,6 +92,11 @@ Item {
     Connections {
         target: OnlineWallpapers
         function onFetched() {
+            if (root.pendingRefetch) {
+                root.pendingRefetch = false;
+                _syncAndFetch();
+                return;
+            }
             if (!OnlineWallpapers.appending) {
                 wallpaperModel.clear()
                 root.hoveredItem = null
@@ -89,6 +107,7 @@ Item {
             }
         }
         function onFetchError(message) {
+            root.pendingRefetch = false
             console.log("[OnlineWallpaperGrid] Error:", message)
         }
     }
